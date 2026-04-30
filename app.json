@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "tracker",
+    "name": "Tracker",
     "slug": "tracker",
+    "scheme": "tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,10 +21,20 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.kartavya.expense"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0148d678-68c0-4f60-b86a-d50c9a02f654"
+      }
     }
   }
 }
