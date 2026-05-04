@@ -5,13 +5,40 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getCountFromServer } from 'firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth, db } from '../firebaseConfig';
 
 GoogleSignin.configure({
   webClientId: '420970137197-cccvrkmjo7hednf6eghcuvmoqatpmitb.apps.googleusercontent.com',
 });
+
+async function sendDiscordNotification(name, email) {
+  try {
+    const coll = collection(db, 'users');
+    const snapshot = await getCountFromServer(coll);
+    const totalUsers = snapshot.data().count;
+
+    // Paste your Discord Webhook URL below!
+    const webhookUrl = 'https://discord.com/api/webhooks/1500800425572696235/2_b-5g5aVIsHV7CG5vTk5SPGrwtWtbWBFuFjS5jWEDfnO9QYmuc-sDoNMojsqh2LcGoo';
+    
+    if (!webhookUrl || webhookUrl.includes('YOUR_DISCORD_WEBHOOK_URL_HERE')) return;
+
+    let milestone = '';
+    if (totalUsers === 1) milestone = '\n🚀 *First user! We have liftoff!*';
+    else if (totalUsers % 5 === 0) milestone = `\n🌟 *Milestone reached! ${totalUsers} total users!*`;
+
+    const message = `**🎉 NEW USER LOGIN! 🎉**\n> **Name:** ${name}\n> **Email:** ${email}\n***\n📈 **Total App Users: ${totalUsers}**${milestone}`;
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    });
+  } catch (error) {
+    console.log('Failed to send Discord notification:', error);
+  }
+}
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -47,6 +74,9 @@ export default function SignupScreen() {
         createdAt: new Date().toISOString(),
       });
 
+      // Send Discord notification
+      sendDiscordNotification(name, userCredential.user.email.toLowerCase());
+
       Alert.alert('Success', 'Account created successfully!');
       router.replace('/onboarding');
     } catch (error) {
@@ -78,6 +108,10 @@ export default function SignupScreen() {
           name: userCredential.user.displayName || 'Google User',
           createdAt: new Date().toISOString(),
         });
+        
+        // Send Discord notification
+        sendDiscordNotification(userCredential.user.displayName || 'Google User', email);
+
         // If it's a completely new user from signup, route to onboarding
         router.replace('/onboarding');
       } else {
@@ -88,9 +122,6 @@ export default function SignupScreen() {
       console.log('Google Sign-In Error:', error);
       Alert.alert('Google Sign-In Error', error.message || 'Something went wrong');
     }
-  }
-  function handleApple() {
-    Alert.alert('Coming Soon', 'Apple sign-in will be wired up for iOS.');
   }
 
   return (
@@ -111,13 +142,6 @@ export default function SignupScreen() {
             <Text style={styles.socialIcon}>G</Text>
             <Text style={styles.socialText}>continue with Google</Text>
           </TouchableOpacity>
-
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity style={[styles.socialBtn, styles.appleBtn]} onPress={handleApple} activeOpacity={0.7}>
-              <Text style={[styles.socialIcon, { color: '#fff' }]}>󰀄</Text>
-              <Text style={[styles.socialText, { color: '#fff' }]}>continue with Apple</Text>
-            </TouchableOpacity>
-          )}
 
           {/* Divider */}
           <View style={styles.dividerRow}>
