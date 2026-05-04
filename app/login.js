@@ -4,13 +4,20 @@ import {
   KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { auth, db } from '../firebaseConfig';
+
+GoogleSignin.configure({
+  webClientId: '420970137197-cccvrkmjo7hednf6eghcuvmoqatpmitb.apps.googleusercontent.com',
+});
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -19,16 +26,43 @@ export default function LoginScreen() {
     }
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.replace('/(tabs)/split'); // Redirect to split tab after login
+      router.replace('/(tabs)/'); // Redirect to wallet tab after login
     } catch (error) {
       Alert.alert('Login Error', error.message);
     }
   }
-  function handleGoogle() {
-    Alert.alert(
-      'Expo Go Limitation',
-      'Google Sign-In requires a custom Dev Client. To test this, you must run "npx expo run:android" instead of "npm start".'
-    );
+  async function handleGoogle() {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data ? userInfo.data.idToken : userInfo.idToken;
+      
+      if (!idToken) {
+        throw new Error('No ID token found');
+      }
+      
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      
+      // Ensure user exists in Firestore for split feature
+      const email = userCredential.user.email.toLowerCase();
+      const userRef = doc(db, 'users', email);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: userCredential.user.uid,
+          email: email,
+          name: userCredential.user.displayName || 'Google User',
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      router.replace('/(tabs)/');
+    } catch (error) {
+      console.log('Google Sign-In Error:', error);
+      Alert.alert('Google Sign-In Error', error.message || 'Something went wrong');
+    }
   }
   function handleApple() {
     Alert.alert('Coming Soon', 'Apple sign-in will be wired up for iOS.');
@@ -81,14 +115,19 @@ export default function LoginScreen() {
           />
 
           <Text style={styles.label}>password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#ccc"
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              placeholder="••••••••"
+              placeholderTextColor="#ccc"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+              <Text style={styles.eyeEmoji}>{showPassword ? '🫣' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleLogin} activeOpacity={0.8}>
             <Text style={styles.submitText}>log in</Text>
@@ -131,6 +170,11 @@ const styles = StyleSheet.create({
 
   label: { fontSize: 11, fontWeight: '700', color: '#bbb', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   input: { fontSize: 17, color: '#000', borderBottomWidth: 1, borderBottomColor: '#eee', paddingVertical: 10, marginBottom: 24 },
+  
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee', marginBottom: 24 },
+  passwordInput: { flex: 1, fontSize: 17, color: '#000', paddingVertical: 10 },
+  eyeBtn: { padding: 10, paddingRight: 0 },
+  eyeEmoji: { fontSize: 18 },
 
   submitBtn: { backgroundColor: '#000', paddingVertical: 17, borderRadius: 30, alignItems: 'center', marginTop: 8 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '600' },

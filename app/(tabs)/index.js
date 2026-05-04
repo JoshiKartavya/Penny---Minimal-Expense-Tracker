@@ -2,15 +2,17 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, TextInput,
   Keyboard, TouchableWithoutFeedback, Animated,
-  KeyboardAvoidingView, Platform, Dimensions,
+  KeyboardAvoidingView, Platform, Dimensions, Alert,
 } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { collection, doc, setDoc, onSnapshot, query, where, writeBatch } from 'firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
-const STORAGE_KEY = '@tracker_transactions';
-const BALANCE_KEY = '@tracker_balance';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 function formatIndian(num) {
@@ -52,44 +54,63 @@ export default function WalletScreen() {
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const snapshotAnim = useRef(new Animated.Value(0)).current;
 
-  // Compute dynamic storage keys
-  const getStorageKey = (u) => u ? `@tracker_transactions_${u.uid}` : '@tracker_transactions_local';
-  const getBalanceKey = (u) => u ? `@tracker_balance_${u.uid}` : '@tracker_balance_local';
+  // Report Modal States
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportDuration, setReportDuration] = useState(7);
+  const reportAnim = useRef(new Animated.Value(0)).current;
+  const reportSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      try {
-        const txKey = getStorageKey(currentUser);
-        const balKey = getBalanceKey(currentUser);
-        const [txRaw, balRaw] = await Promise.all([
-          AsyncStorage.getItem(txKey),
-          AsyncStorage.getItem(balKey),
-        ]);
-        if (txRaw) {
-          const parsed = JSON.parse(txRaw).map(t => ({ ...t, date: new Date(t.date) }));
-          setTransactions(parsed);
-        } else {
-          setTransactions([]);
+      if (currentUser) {
+        // --- AUTO-MIGRATION LOGIC ---
+        try {
+          const localTxsRaw = await AsyncStorage.getItem(`@tracker_transactions_${currentUser.uid}`);
+          if (localTxsRaw) {
+            const localTxs = JSON.parse(localTxsRaw);
+            if (localTxs.length > 0) {
+              const batch = writeBatch(db);
+              localTxs.forEach(tx => {
+                const docRef = doc(db, 'wallet_transactions', tx.id);
+                // Convert dates to timestamps for consistent cloud storage
+                batch.set(docRef, { ...tx, user_email: currentUser.email.toLowerCase(), date: new Date(tx.date).getTime() });
+              });
+              await batch.commit();
+              // Clear local cache once safely in cloud
+              await AsyncStorage.removeItem(`@tracker_transactions_${currentUser.uid}`);
+              await AsyncStorage.removeItem(`@tracker_balance_${currentUser.uid}`);
+            }
+          }
+        } catch (e) {
+          console.log('Migration error:', e);
         }
-        if (balRaw !== null) {
-          setBalance(parseFloat(balRaw));
-        } else {
-          setBalance(0);
-        }
-      } catch (_) {}
+
+        // --- REAL-TIME CLOUD LISTENER ---
+        const q = query(
+          collection(db, 'wallet_transactions'),
+          where('user_email', '==', currentUser.email.toLowerCase())
+        );
+        
+        const unsubTxs = onSnapshot(q, (snapshot) => {
+          const txs = snapshot.docs.map(d => ({ ...d.data(), id: d.id, date: new Date(d.data().date) }));
+          // Sort by date descending
+          txs.sort((a, b) => b.date - a.date);
+          setTransactions(txs);
+          
+          // Calculate balance dynamically
+          const bal = txs.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+          setBalance(bal);
+        });
+        
+        return () => unsubTxs();
+      } else {
+        setTransactions([]);
+        setBalance(0);
+      }
     });
     return unsubscribe;
   }, []);
-
-  const persist = useCallback(async (txs, bal) => {
-    try {
-      const txKey = getStorageKey(user);
-      const balKey = getBalanceKey(user);
-      await AsyncStorage.setItem(txKey, JSON.stringify(txs));
-      await AsyncStorage.setItem(balKey, String(bal));
-    } catch (_) {}
-  }, [user]);
 
   const today = new Date();
   const dailyNet = transactions
@@ -117,23 +138,31 @@ export default function WalletScreen() {
     ]).start(() => { setModalVisible(false); setActionType(null); });
   }
 
-  function handleSave() {
+  async function handleSave() {
     const val = parseFloat(amount);
     if (isNaN(val) || val <= 0) return;
+    
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to save transactions.');
+      return;
+    }
+
     const tx = {
-      id: Date.now().toString(),
+      user_email: user.email.toLowerCase(),
       type: actionType,
       amount: val,
       description: description.trim() || (actionType === 'income' ? 'Income' : 'Expense'),
-      date: new Date(),
+      date: new Date().getTime(),
       method: method,
     };
-    const newTxs = [tx, ...transactions];
-    const newBal = actionType === 'income' ? balance + val : balance - val;
-    setTransactions(newTxs);
-    setBalance(newBal);
-    persist(newTxs, newBal);
-    closeModal();
+    
+    try {
+      const docRef = doc(collection(db, 'wallet_transactions'));
+      await setDoc(docRef, tx);
+      closeModal();
+    } catch (error) {
+      Alert.alert('Error', 'Could not save transaction to cloud.');
+    }
   }
 
   function openSnapshot() {
@@ -144,6 +173,91 @@ export default function WalletScreen() {
     Animated.timing(snapshotAnim, { toValue: 0, duration: 200, useNativeDriver: true })
       .start(() => setSnapshotVisible(false));
   }
+
+  function openReportModal() {
+    closeSnapshot();
+    setTimeout(() => {
+      setReportModalVisible(true);
+      Animated.parallel([
+        Animated.timing(reportAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(reportSlideAnim, { toValue: 0, tension: 65, friction: 11, useNativeDriver: true })
+      ]).start();
+    }, 200);
+  }
+
+  function closeReportModal() {
+    Animated.parallel([
+      Animated.timing(reportAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(reportSlideAnim, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true })
+    ]).start(() => setReportModalVisible(false));
+  }
+
+  const generatePDF = async (days) => {
+    try {
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - days);
+
+      const filtered = transactions.filter(t => new Date(t.date) >= pastDate);
+      
+      const tableRows = filtered.map(t => {
+        const d = new Date(t.date);
+        const dateStr = d.toLocaleDateString();
+        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `
+        <tr>
+          <td>${dateStr} <span style="color: #bbb; font-size: 12px; margin-left: 6px;">${timeStr}</span></td>
+          <td>${t.description}</td>
+          <td style="color: ${t.type === 'income' ? '#6A9C78' : '#C56A67'};">${t.type === 'income' ? '+' : '-'}₹${formatIndian(t.amount)}</td>
+          <td>${t.method || 'online'}</td>
+        </tr>
+      `}).join('');
+
+      const html = `
+        <html>
+          <head>
+            <style>
+              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; }
+              h1 { color: #000; text-align: center; margin-bottom: 5px; }
+              p { color: #888; text-align: center; margin-top: 0; margin-bottom: 30px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border-bottom: 1px solid #eee; padding: 14px 8px; text-align: left; font-size: 14px; }
+              th { background-color: #fafafa; color: #888; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+              .total { margin-top: 30px; font-size: 20px; font-weight: bold; text-align: right; color: #000; }
+            </style>
+          </head>
+          <body>
+            <h1>Penny Statement</h1>
+            <p>Past ${days} Days</p>
+            <table>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Method</th>
+              </tr>
+              ${tableRows}
+            </table>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html });
+      
+      const safeName = user && user.email ? user.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') : 'User';
+      const durationLabel = days === 7 ? '1Week' : days === 14 ? '2Weeks' : '1Month';
+      const newUri = `${FileSystem.documentDirectory}Penny_${safeName}_${durationLabel}.pdf`;
+      
+      await FileSystem.moveAsync({
+        from: uri,
+        to: newUri
+      });
+
+      await Sharing.shareAsync(newUri, { UTI: '.pdf', mimeType: 'application/pdf', dialogTitle: `Penny Report - ${durationLabel}` });
+      closeReportModal();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate PDF');
+    }
+  };
 
   const isProfit = dailyNet >= 0;
   // Soft colors applied here
@@ -272,7 +386,12 @@ export default function WalletScreen() {
             opacity: snapshotAnim,
             transform: [{ scale: snapshotAnim.interpolate({ inputRange: [0, 1], outputRange: [0.93, 1] }) }]
           }]}>
-            <Text style={styles.snapshotTitle}>how am i doing?</Text>
+            <View style={styles.snapshotTitleRow}>
+              <Text style={styles.snapshotTitle}>how am i doing?</Text>
+              <TouchableOpacity onPress={openReportModal} style={styles.pdfBtn}>
+                <Text style={styles.pdfIcon}>📄</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.snapshotRow}>
               <Text style={styles.snapshotLabel}>total balance</Text>
               <Text style={styles.snapshotValue}>₹ {formatIndian(balance)}</Text>
@@ -298,6 +417,47 @@ export default function WalletScreen() {
             <Text style={styles.snapshotHint}>tap anywhere to close</Text>
           </Animated.View>
         </Animated.View>
+      )}
+
+      {/* Report PDF Modal */}
+      {reportModalVisible && (
+        <View style={StyleSheet.absoluteFill}>
+          <Animated.View style={[styles.modalOverlay, { opacity: reportAnim }]}>
+            <TouchableWithoutFeedback onPress={closeReportModal}>
+              <View style={StyleSheet.absoluteFill} />
+            </TouchableWithoutFeedback>
+          </Animated.View>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24} style={styles.keyboardAvoid}>
+            <Animated.View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom + 20, 40), transform: [{ translateY: reportSlideAnim }] }]}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHandle} />
+                <Text style={styles.modalTitle}>download report</Text>
+                
+                <Text style={styles.reportLabel}>SELECT DURATION</Text>
+                <View style={styles.reportOptions}>
+                  {[
+                    { label: '1 Week', value: 7 },
+                    { label: '2 Weeks', value: 14 },
+                    { label: '1 Month', value: 30 }
+                  ].map(opt => (
+                    <TouchableOpacity 
+                      key={opt.value} 
+                      style={[styles.reportOptionBtn, reportDuration === opt.value && styles.reportOptionBtnActive]}
+                      onPress={() => setReportDuration(opt.value)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.reportOptionText, reportDuration === opt.value && styles.reportOptionTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity style={styles.downloadBtn} onPress={() => generatePDF(reportDuration)} activeOpacity={0.8}>
+                  <Text style={styles.downloadText}>Download PDF</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
       )}
     </View>
   );
@@ -346,10 +506,21 @@ const styles = StyleSheet.create({
   methodTextActive: { color: '#000' },
   snapshotOverlay: { backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   snapshotCard: { backgroundColor: '#fff', borderRadius: 28, padding: 32, width: '85%', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 24 },
-  snapshotTitle: { fontSize: 13, fontWeight: '600', color: '#bbb', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 28 },
+  snapshotTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
+  snapshotTitle: { fontSize: 13, fontWeight: '600', color: '#bbb', letterSpacing: 1.2, textTransform: 'uppercase' },
+  pdfBtn: { padding: 4 },
+  pdfIcon: { fontSize: 20 },
   snapshotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   snapshotLabel: { fontSize: 15, color: '#888', fontWeight: '400' },
   snapshotValue: { fontSize: 16, fontWeight: '700', color: '#000' },
   snapshotDivider: { height: 1, backgroundColor: '#f2f2f2', marginVertical: 8 },
   snapshotHint: { fontSize: 11, color: '#d0d0d0', textAlign: 'center', marginTop: 24 },
+  reportLabel: { fontSize: 11, fontWeight: '700', color: '#bbb', letterSpacing: 1, marginBottom: 16 },
+  reportOptions: { flexDirection: 'column', gap: 12, marginBottom: 32 },
+  reportOptionBtn: { paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#f0f0f0' },
+  reportOptionBtnActive: { backgroundColor: '#F0F5F2', borderColor: '#6A9C78' },
+  reportOptionText: { fontSize: 16, fontWeight: '500', color: '#888', textAlign: 'center' },
+  reportOptionTextActive: { color: '#6A9C78', fontWeight: '700' },
+  downloadBtn: { backgroundColor: '#6A9C78', paddingVertical: 18, borderRadius: 30, alignItems: 'center' },
+  downloadText: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: 0.5 },
 });

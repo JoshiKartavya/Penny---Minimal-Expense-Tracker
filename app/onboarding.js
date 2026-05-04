@@ -21,7 +21,7 @@ const RING2_RADIUS = 150;
 const slides = [
   {
     key: '1',
-    title: 'tracker',
+    title: 'penny',
     subtitleRegular: 'Beautifully simple\n',
     subtitleColor: 'expense tracking',
     colorHex: '#FF7E67',
@@ -197,7 +197,7 @@ export default function OnboardingScreen() {
   };
 
   const finishOnboarding = () => {
-    router.replace('/(tabs)/split');
+    router.replace('/(tabs)/');
   };
 
   const interpolatedBg = bgAnim.interpolate({
@@ -242,7 +242,7 @@ export default function OnboardingScreen() {
                   },
                 ]}
               >
-                <Text style={styles.logoText}>tracker</Text>
+                <Text style={styles.logoText}>penny</Text>
                 <Text style={styles.title}>{slide.title}</Text>
                 <Text style={styles.subtitle}>
                   {slide.subtitleRegular}

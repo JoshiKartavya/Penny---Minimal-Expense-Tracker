@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, SectionList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
-
-const STORAGE_KEY = '@tracker_transactions';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
 function isSameDay(d1, d2) {
   return d1.getFullYear() === d2.getFullYear() &&
@@ -58,20 +56,24 @@ export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState(null);
 
-  const getStorageKey = (u) => u ? `@tracker_transactions_${u.uid}` : '@tracker_transactions_local';
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      try {
-        const raw = await AsyncStorage.getItem(getStorageKey(currentUser));
-        if (raw) {
-          const parsed = JSON.parse(raw);
+      if (currentUser) {
+        const q = query(
+          collection(db, 'wallet_transactions'),
+          where('user_email', '==', currentUser.email.toLowerCase())
+        );
+        
+        const unsubTxs = onSnapshot(q, (snapshot) => {
+          const parsed = snapshot.docs.map(d => ({ ...d.data(), id: d.id, date: new Date(d.data().date) }));
           setSections(groupTransactions(parsed));
-        } else {
-          setSections([]);
-        }
-      } catch (_) {}
+        });
+        
+        return () => unsubTxs();
+      } else {
+        setSections([]);
+      }
     });
     return unsubscribe;
   }, []);

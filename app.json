@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Tracker",
-    "slug": "tracker",
-    "scheme": "tracker",
+    "name": "Penny",
+    "slug": "penny",
+    "scheme": "penny",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,19 +22,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.kartavya.expense"
+      "package": "com.kartavya.penny",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "0148d678-68c0-4f60-b86a-d50c9a02f654"
+        "projectId": "eb007458-5388-4944-b3c5-3fcca83b38c4"
       }
-    }
+    },
+    "owner": "royalbhudev"
   }
 }

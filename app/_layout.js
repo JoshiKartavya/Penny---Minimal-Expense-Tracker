@@ -14,6 +14,8 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
+        {/* Entry Point */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         {/* Main Tab Navigation */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* Auth Screens */}

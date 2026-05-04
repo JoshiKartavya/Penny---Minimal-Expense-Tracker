@@ -54,8 +54,6 @@ function formatIndian(num) {
 }
 
 export default function SettingsScreen() {
-  const [balance, setBalance] = useState(0);
-  const [txCount, setTxCount] = useState(0);
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   
@@ -84,23 +82,9 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const txKey = getStorageKey(user);
-        const balKey = getBalanceKey(user);
-        const [txRaw, balRaw, currRaw] = await Promise.all([
-          AsyncStorage.getItem(txKey),
-          AsyncStorage.getItem(balKey),
+        const [currRaw] = await Promise.all([
           AsyncStorage.getItem(CURRENCY_KEY),
         ]);
-        if (txRaw) {
-          setTxCount(JSON.parse(txRaw).length);
-        } else {
-          setTxCount(0);
-        }
-        if (balRaw !== null) {
-          setBalance(parseFloat(balRaw));
-        } else {
-          setBalance(0);
-        }
         if (currRaw) {
           const found = CURRENCIES.find(c => c.code === currRaw);
           if (found) setCurrency(found);
@@ -132,8 +116,6 @@ export default function SettingsScreen() {
     const txKey = getStorageKey(user);
     const balKey = getBalanceKey(user);
     await AsyncStorage.multiRemove([txKey, balKey]);
-    setBalance(0);
-    setTxCount(0);
     setClearModalVisible(false);
     showToast('All data has been cleared.');
   }
@@ -171,19 +153,13 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>logged in as</Text>
               <Text style={styles.settingSubValue}>{user.displayName || user.email}</Text>
             </View>
-            <TouchableOpacity style={styles.settingRow} onPress={handleSignOut}>
-              <Text style={[styles.settingLabel, { color: '#C56A67' }]}>sign out</Text>
-              <Text style={styles.settingArrow}>›</Text>
+            <TouchableOpacity style={styles.signOutListBtn} onPress={handleSignOut}>
+              <Text style={styles.signOutListBtnText}>sign out</Text>
             </TouchableOpacity>
           </>
         )}
 
-        {/* BALANCE */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>balance</Text>
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>current balance</Text>
-          <Text style={styles.settingValue}>{currency.symbol} {formatIndian(balance)}</Text>
-        </View>
+
 
         {/* CURRENCY */}
         <Text style={[styles.settingGroup, { marginTop: 32 }]}>preferences</Text>
@@ -200,10 +176,6 @@ export default function SettingsScreen() {
 
         {/* APP INFO */}
         <Text style={[styles.settingGroup, { marginTop: 32 }]}>app</Text>
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>transactions logged</Text>
-          <Text style={styles.settingValue}>{txCount}</Text>
-        </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingLabel}>version</Text>
           <Text style={styles.settingValue}>2.0.0</Text>
@@ -350,14 +322,17 @@ const styles = StyleSheet.create({
   settingGroup: { fontSize: 10, fontWeight: '700', color: '#bbb', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 },
   settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f2f2f2' },
   settingLabel: { fontSize: 15, color: '#000', fontWeight: '400' },
-  settingSubValue: { fontSize: 11, color: '#bbb', marginTop: 2 },
+  settingSubValue: { fontSize: 13, color: '#888', fontWeight: '500', marginTop: 4 },
   settingValue: { fontSize: 14, color: '#bbb', fontWeight: '400' },
-  settingArrow: { fontSize: 18, color: '#bbb' },
-  currencyRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  currencySymbolBadge: { fontSize: 16, color: '#000', fontWeight: '600' },
+  settingArrow: { fontSize: 20, color: '#ccc', paddingLeft: 10 },
+  currencyRight: { flexDirection: 'row', alignItems: 'center' },
+  currencySymbolBadge: { backgroundColor: '#f0f0f0', color: '#000', fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+
+  signOutListBtn: { backgroundColor: '#C56A67', paddingVertical: 10, paddingHorizontal: 28, borderRadius: 16, alignSelf: 'flex-start', marginTop: 16 },
+  signOutListBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   // Danger Button
-  dangerBtn: { backgroundColor: '#C56A67', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+  dangerBtn: { backgroundColor: '#C56A67', paddingVertical: 14, borderRadius: 20, alignItems: 'center', marginTop: 12 },
   dangerBtnText: { color: '#fff', fontSize: 15, fontWeight: '600', letterSpacing: 0.5 },
 
   // Currency modal
