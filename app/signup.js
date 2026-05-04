@@ -32,7 +32,7 @@ export default function SignupScreen() {
       });
 
       Alert.alert('Success', 'Account created successfully!');
-      router.replace('/(tabs)/split');
+      router.replace('/onboarding');
     } catch (error) {
       Alert.alert('Signup Error', error.message);
     }

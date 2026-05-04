@@ -21,8 +21,9 @@ export default function RootLayout() {
         <Stack.Screen name="signup" options={{ presentation: 'modal' }} />
         {/* Settings Screen extracted from tabs */}
         <Stack.Screen name="setting" options={{ presentation: 'card', animation: 'fade' }} />
-        {/* Notifications Screen */}
         <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+        {/* Onboarding Screen */}
+        <Stack.Screen name="onboarding" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
     </SafeAreaProvider>
   );

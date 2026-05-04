@@ -82,7 +82,7 @@ export default function ActivityScreen() {
       <View style={styles.txItem}>
         <View>
           <Text style={styles.txDesc} numberOfLines={1}>{item.description}</Text>
-          <Text style={styles.txTime}>{fmtTime(new Date(item.date))}</Text>
+          <Text style={styles.txTime}>{fmtTime(new Date(item.date))}  •  {item.method === 'cash' ? 'Cash' : 'Online'}</Text>
         </View>
         <Text style={[styles.txAmount, { color: isIncome ? '#6A9C78' : '#C56A67' }]}>
           {isIncome ? '+' : '−'} ₹{formatIndian(item.amount)}

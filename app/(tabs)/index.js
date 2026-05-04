@@ -45,6 +45,7 @@ export default function WalletScreen() {
   const [actionType, setActionType] = useState(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [method, setMethod] = useState('online');
 
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -101,7 +102,7 @@ export default function WalletScreen() {
     .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
 
   function openModal(type) {
-    setActionType(type); setAmount(''); setDescription(''); setModalVisible(true);
+    setActionType(type); setAmount(''); setDescription(''); setMethod('online'); setModalVisible(true);
     Animated.parallel([
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
       Animated.timing(overlayAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
@@ -125,6 +126,7 @@ export default function WalletScreen() {
       amount: val,
       description: description.trim() || (actionType === 'income' ? 'Income' : 'Expense'),
       date: new Date(),
+      method: method,
     };
     const newTxs = [tx, ...transactions];
     const newBal = actionType === 'income' ? balance + val : balance - val;
@@ -148,13 +150,22 @@ export default function WalletScreen() {
   const dailyColor = isProfit ? '#6A9C78' : '#C56A67';
   const dailySign = isProfit ? '+' : '';
 
+  const cashBalance = transactions.filter(t => t.method === 'cash').reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+  const onlineBalance = transactions.filter(t => t.method !== 'cash').reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.content}>
         <View style={styles.balanceChip}>
-        <Text style={styles.balanceChipLabel}>balance  </Text>
-        <Text style={styles.balanceChipAmount}>₹ {formatIndian(balance)}</Text>
-      </View>
+          <Text style={styles.balanceChipLabel}>balance  </Text>
+          <Text style={styles.balanceChipAmount}>₹ {formatIndian(balance)}</Text>
+        </View>
+        <View style={styles.subBalanceRow}>
+          <Text style={styles.balanceSubLabel}>CASH  </Text>
+          <Text style={styles.balanceSubAmount}>₹ {formatIndian(cashBalance)}</Text>
+          <Text style={styles.balanceSubLabel}>   •   ONLINE  </Text>
+          <Text style={styles.balanceSubAmount}>₹ {formatIndian(onlineBalance)}</Text>
+        </View>
 
       <View style={styles.heroSection}>
         <Text style={styles.heroLabel}>today</Text>
@@ -191,7 +202,7 @@ export default function WalletScreen() {
             </TouchableWithoutFeedback>
           </Animated.View>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24} style={styles.keyboardAvoid}>
-            <Animated.View style={[styles.modalSheet, { transform: [{ translateY: slideAnim }] }]}>
+            <Animated.View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom + 20, 80), transform: [{ translateY: slideAnim }] }]}>
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHandle} />
@@ -207,6 +218,20 @@ export default function WalletScreen() {
                       placeholderTextColor="#ccc"
                       autoFocus
                     />
+                  </View>
+                  <View style={styles.methodToggle}>
+                    <TouchableOpacity 
+                      style={[styles.methodBtn, method === 'online' && styles.methodBtnActive]} 
+                      onPress={() => setMethod('online')}
+                    >
+                      <Text style={[styles.methodText, method === 'online' && styles.methodTextActive]}>Online</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.methodBtn, method === 'cash' && styles.methodBtnActive]} 
+                      onPress={() => setMethod('cash')}
+                    >
+                      <Text style={[styles.methodText, method === 'cash' && styles.methodTextActive]}>Cash</Text>
+                    </TouchableOpacity>
                   </View>
                   <TextInput
                     style={styles.descInput}
@@ -281,9 +306,12 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fcfcfc' },
   content: { flex: 1, paddingHorizontal: 28, paddingBottom: 120 },
-  balanceChip: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10, marginBottom: 36 },
+  balanceChip: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10, marginBottom: 8 },
   balanceChipLabel: { fontSize: 12, color: '#c0c0c0', fontWeight: '500', letterSpacing: 0.3 },
   balanceChipAmount: { fontSize: 14, color: '#a0a0a0', fontWeight: '600' },
+  subBalanceRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 36 },
+  balanceSubLabel: { fontSize: 10, color: '#d0d0d0', fontWeight: '600', letterSpacing: 0.5 },
+  balanceSubAmount: { fontSize: 11, color: '#b0b0b0', fontWeight: '600' },
   heroSection: { marginTop: 0 },
   heroLabel: { fontSize: 12, fontWeight: '600', color: '#c0c0c0', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10 },
   heroAmount: { fontSize: 46, fontWeight: '800', letterSpacing: -1.5, lineHeight: 52 },
@@ -296,7 +324,7 @@ const styles = StyleSheet.create({
   fabArrow: { fontSize: 32, color: '#fff', fontWeight: '400', lineHeight: 36 },
   modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
   keyboardAvoid: { flex: 1, justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 80, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 20 },
+  modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 20 },
   modalContent: { paddingHorizontal: 28, paddingTop: 12 },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 22, fontWeight: '300', color: '#b0b0b0', marginBottom: 30 },
@@ -310,6 +338,12 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#000', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 30 },
   saveBtnDisabled: { backgroundColor: '#e0e0e0' },
   saveText: { fontSize: 16, color: '#fff', fontWeight: '600' },
+  
+  methodToggle: { flexDirection: 'row', backgroundColor: '#f0f0f0', borderRadius: 20, padding: 4, marginBottom: 16 },
+  methodBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 16 },
+  methodBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  methodText: { fontSize: 13, fontWeight: '600', color: '#888' },
+  methodTextActive: { color: '#000' },
   snapshotOverlay: { backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   snapshotCard: { backgroundColor: '#fff', borderRadius: 28, padding: 32, width: '85%', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 24 },
   snapshotTitle: { fontSize: 13, fontWeight: '600', color: '#bbb', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 28 },
