@@ -99,7 +99,11 @@ export default function Header() {
 
   return (
     <View style={styles.header}>
-      <View style={{ flex: 1 }} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.brandText, { color: colors.text }]} numberOfLines={1}>
+          {user ? `Hello, ${user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0]} 👋` : 'Penny'}
+        </Text>
+      </View>
       
       {/* Right side: Icons */}
       <View style={styles.iconGroup}>
@@ -136,9 +140,9 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16, // Reduced since padding top is now handled by insets in _layout
+    paddingTop: 24, 
     paddingHorizontal: 24,
-    paddingBottom: 8,
+    paddingBottom: 16,
     backgroundColor: colors.background,
     zIndex: 10,
   },
@@ -146,6 +150,11 @@ const createStyles = (colors, isDark) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16, // Increased gap
+  },
+  brandText: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   iconBtn: {
     padding: 6,
