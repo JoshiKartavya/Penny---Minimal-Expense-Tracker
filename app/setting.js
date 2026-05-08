@@ -64,7 +64,6 @@ export default function SettingsScreen() {
   const [themeModalVisible, setThemeModalVisible] = useState(false);
   
   // Custom Modal State for Clearing Data
-  const [clearModalVisible, setClearModalVisible] = useState(false);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   
   // Custom Toast State
@@ -105,9 +104,6 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem(CURRENCY_KEY, c.code);
   }
 
-  function promptClearData() {
-    setClearModalVisible(true);
-  }
 
   function showToast(message) {
     setToastMessage(message);
@@ -118,13 +114,6 @@ export default function SettingsScreen() {
     ]).start(() => setToastMessage(''));
   }
 
-  async function executeClearData() {
-    const txKey = getStorageKey(user);
-    const balKey = getBalanceKey(user);
-    await AsyncStorage.multiRemove([txKey, balKey]);
-    setClearModalVisible(false);
-    showToast('All data has been cleared.');
-  }
 
   function handleSignOut() {
     setSignOutModalVisible(true);
@@ -217,21 +206,18 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* APP INFO */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('app')}</Text>
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>{t('version')}</Text>
-          <Text style={styles.settingValue}>2.0.0</Text>
-        </View>
 
-        {/* DATA */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('data')}</Text>
-        <TouchableOpacity style={styles.dangerBtn} onPress={promptClearData} activeOpacity={0.8}>
-          <Text style={styles.dangerBtnText}>{t('clear_all_data')}</Text>
-        </TouchableOpacity>
-
-        {/* ABOUT */}
+        {/* ABOUT & HELP */}
         <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('about')}</Text>
+        <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/help')}>
+          <View>
+            <Text style={styles.settingLabel}>{t('help_center') || 'Help Center'}</Text>
+            <Text style={styles.settingSubValue}>FAQ & Support</Text>
+          </View>
+          <View style={styles.currencyRight}>
+            <Text style={styles.settingArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
         <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
           <Text style={[styles.settingLabel, { color: '#bbb', fontSize: 13, lineHeight: 22 }]}>
             {t('about_text')}
@@ -364,38 +350,6 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Clear Data Confirmation Modal */}
-      <Modal
-        visible={clearModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setClearModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.alertBox}>
-            <Text style={styles.alertTitle}>{t('clear_data_title')}</Text>
-            <Text style={styles.alertText}>
-              {t('clear_data_text')}
-            </Text>
-
-            <View style={styles.alertActions}>
-              <TouchableOpacity 
-                style={styles.alertCancelBtn} 
-                onPress={() => setClearModalVisible(false)}
-              >
-                <Text style={styles.alertCancelText}>{t('cancel')}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.alertConfirmBtn} 
-                onPress={executeClearData}
-              >
-                <Text style={styles.alertConfirmText}>{t('yes_delete')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Sign Out Confirmation Modal */}
       <Modal

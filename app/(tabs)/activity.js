@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SectionList, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, SectionList, TouchableOpacity, Alert, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
@@ -58,6 +58,9 @@ export default function ActivityScreen() {
   const { colors } = useAppContext();
   const styles = createStyles(colors);
   const [user, setUser] = useState(null);
+  
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -82,17 +85,19 @@ export default function ActivityScreen() {
   }, []);
 
   function handleDelete(id) {
-    Alert.alert('Delete Transaction', 'Are you sure you want to delete this log? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await deleteDoc(doc(db, 'wallet_transactions', id));
-          } catch (error) {
-            Alert.alert('Error', 'Could not delete transaction');
-          }
-        } 
-      }
-    ]);
+    setItemToDelete(id);
+    setDeleteModalVisible(true);
+  }
+
+  async function confirmDelete() {
+    if (!itemToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'wallet_transactions', itemToDelete));
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+    } catch (error) {
+      Alert.alert('Error', 'Could not delete transaction');
+    }
   }
 
   function renderTxItem({ item }) {
@@ -138,6 +143,27 @@ export default function ActivityScreen() {
             />
         }
       </View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => setDeleteModalVisible(false)}>
+        <View style={styles.modalOverlayCentered}>
+          <View style={styles.alertBox}>
+            <Text style={styles.alertTitle}>Delete Transaction?</Text>
+            <Text style={styles.alertText}>
+              Are you sure you want to delete this log? This will update your balances and cannot be undone.
+            </Text>
+            <View style={styles.alertActions}>
+              <TouchableOpacity style={styles.alertConfirmBtn} onPress={confirmDelete} activeOpacity={0.8}>
+                <Text style={styles.alertConfirmText}>Delete</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.alertCancelBtn} onPress={() => setDeleteModalVisible(false)} activeOpacity={0.8}>
+                <Text style={styles.alertCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -157,4 +183,15 @@ const createStyles = (colors) => StyleSheet.create({
   txAmt: { fontSize: 15, fontWeight: '600' },
   deleteBtn: { paddingHorizontal: 12, paddingVertical: 4 },
   deleteBtnText: { color: colors.textPlaceholder, fontSize: 16, fontWeight: '600' },
+
+  // Custom Alert Modal Styles
+  modalOverlayCentered: { flex: 1, backgroundColor: colors.overlayDark || 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  alertBox: { backgroundColor: colors.card, width: '100%', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 24 },
+  alertTitle: { fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 12, textAlign: 'center' },
+  alertText: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 28, paddingHorizontal: 10 },
+  alertActions: { width: '100%', gap: 12 },
+  alertConfirmBtn: { backgroundColor: colors.danger, paddingVertical: 16, borderRadius: 20, alignItems: 'center', width: '100%' },
+  alertConfirmText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  alertCancelBtn: { paddingVertical: 14, alignItems: 'center', width: '100%', borderRadius: 20, backgroundColor: colors.iconPlaceholder },
+  alertCancelText: { color: colors.text, fontSize: 15, fontWeight: '600' },
 });

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, TextInput,
+  Keyboard, TouchableWithoutFeedback, Animated,
   KeyboardAvoidingView, Platform, Dimensions, Alert, ScrollView, Modal,
 } from 'react-native';
 import * as Print from 'expo-print';
@@ -395,36 +396,43 @@ export default function WalletScreen() {
         </Text>
       </View>
 
-      <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 16 }}>
-        {presets.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}>
+      <View style={styles.presetsContainer}>
+        <Text style={styles.presetsLabel}>QUICK LOG</Text>
+        {presets.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
             {presets.map(p => (
               <TouchableOpacity
                 key={p.id}
-                style={[styles.presetCard, p.type === 'income' ? styles.presetCardIncome : styles.presetCardExpense]}
+                style={styles.presetCard}
                 onPress={() => logPreset(p)}
                 onLongPress={() => confirmDeletePreset(p)}
                 delayLongPress={400}
+                activeOpacity={0.7}
               >
-                <Text style={styles.presetTitle}>{p.description}</Text>
-                <Text style={[styles.presetAmount, { color: p.type === 'income' ? colors.successLight : colors.danger }]}>
-                  {p.type === 'income' ? '+' : '-'}₹{p.amount}
-                </Text>
+                <View style={[styles.presetIcon, p.type === 'income' ? styles.presetIconIncome : styles.presetIconExpense]}>
+                  <Text style={[styles.presetIconText, p.type === 'income' ? styles.presetIconTextIncome : styles.presetIconTextExpense]}>
+                    {p.type === 'income' ? '+' : '−'}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={styles.presetTitle}>{p.description}</Text>
+                  <Text style={styles.presetAmount}>₹{p.amount}</Text>
+                </View>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.presetAddBtn} onPress={() => openPresetModal()}>
+            <TouchableOpacity style={styles.presetAddBtn} onPress={() => openPresetModal()} activeOpacity={0.7}>
               <Text style={styles.presetAddIcon}>+</Text>
             </TouchableOpacity>
           </ScrollView>
-        )}
-        {presets.length === 0 && (
-          <View style={{ alignItems: 'flex-start', marginLeft: 4 }}>
-            <TouchableOpacity style={styles.presetAddBtnEmpty} onPress={() => openPresetModal()}>
-              <Text style={styles.presetAddText}>+ Create Preset</Text>
-            </TouchableOpacity>
-          </View>
+        ) : (
+          <TouchableOpacity style={styles.presetAddBtnEmpty} onPress={() => openPresetModal()} activeOpacity={0.7}>
+            <Text style={styles.presetAddIconEmpty}>+</Text>
+            <Text style={styles.presetAddText}>Create Preset</Text>
+          </TouchableOpacity>
         )}
       </View>
+
+      <View style={{ flex: 1 }} />
 
       <View style={styles.fabCluster}>
         <TouchableOpacity style={styles.fabSmallTop} onPress={() => openModal('income')} activeOpacity={0.75}>
@@ -789,15 +797,23 @@ const createStyles = (colors) => StyleSheet.create({
   downloadText: { color: colors.primaryText, fontSize: 17, fontWeight: '700', letterSpacing: 0.5 },
 
   // Preset Styles
-  presetCard: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderSecondary, marginRight: 8, minWidth: 90, alignItems: 'center', justifyContent: 'center' },
-  presetCardIncome: { borderColor: colors.successLight + '40', backgroundColor: colors.successLight + '10' },
-  presetCardExpense: { borderColor: colors.danger + '40', backgroundColor: colors.danger + '10' },
-  presetTitle: { fontSize: 12, fontWeight: '600', color: colors.text, marginBottom: 4 },
-  presetAmount: { fontSize: 14, fontWeight: '700' },
-  presetAddBtn: { width: 50, height: 60, borderRadius: 20, backgroundColor: colors.iconPlaceholder, alignItems: 'center', justifyContent: 'center' },
-  presetAddIcon: { fontSize: 24, color: colors.textSecondary, fontWeight: '300' },
-  presetAddBtnEmpty: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 20, backgroundColor: colors.iconPlaceholder },
-  presetAddText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  // Preset Styles
+  presetsContainer: { marginTop: 40 },
+  presetsLabel: { fontSize: 11, fontWeight: '700', color: colors.textPlaceholder, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 16 },
+  presetCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 24, backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4, marginRight: 12, minWidth: 140 },
+  presetIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  presetIconIncome: { backgroundColor: colors.successLight + '20' },
+  presetIconExpense: { backgroundColor: colors.danger + '20' },
+  presetIconText: { fontSize: 20, fontWeight: '400', marginTop: -2 },
+  presetIconTextIncome: { color: colors.successLight },
+  presetIconTextExpense: { color: colors.danger },
+  presetTitle: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  presetAmount: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  presetAddBtn: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.iconPlaceholder, alignItems: 'center', justifyContent: 'center' },
+  presetAddIcon: { fontSize: 28, color: colors.textSecondary, fontWeight: '300' },
+  presetAddBtnEmpty: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 24, backgroundColor: colors.iconPlaceholder, alignSelf: 'flex-start' },
+  presetAddIconEmpty: { fontSize: 20, color: colors.textSecondary, fontWeight: '300', marginRight: 8, marginTop: -2 },
+  presetAddText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 
   // Success Toast Styles
   successModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0)', justifyContent: 'flex-start', alignItems: 'center', paddingTop: 60 },
