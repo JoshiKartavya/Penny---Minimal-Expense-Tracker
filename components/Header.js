@@ -4,8 +4,12 @@ import { useRouter, usePathname } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
+import { registerForPushNotificationsAsync } from '../services/NotificationService';
+import { useAppContext } from '../app/AppContext';
 
 export default function Header() {
+  const { colors, isDark } = useAppContext();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -53,14 +57,18 @@ export default function Header() {
         // Ensure user exists in Firestore (fixes older accounts)
         try {
           const userDocRef = doc(db, 'users', currentUser.email.toLowerCase());
+          const pushToken = await registerForPushNotificationsAsync();
           const snap = await getDoc(userDocRef);
           if (!snap.exists()) {
             await setDoc(userDocRef, {
               uid: currentUser.uid,
               email: currentUser.email.toLowerCase(),
               name: currentUser.displayName || currentUser.email.split('@')[0],
+              pushToken: pushToken || null,
               createdAt: new Date().toISOString(),
             }, { merge: true });
+          } else if (pushToken) {
+            await setDoc(userDocRef, { pushToken }, { merge: true });
           }
         } catch (e) {
           console.log('Error syncing user profile:', e);
@@ -79,7 +87,7 @@ export default function Header() {
     const q = query(
       collection(db, 'notifications'),
       where('to_email', '==', user.email.toLowerCase()),
-      where('read', '==', false)
+      where('status', '==', 'pending')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -123,7 +131,7 @@ export default function Header() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors, isDark) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -131,7 +139,7 @@ const styles = StyleSheet.create({
     paddingTop: 16, // Reduced since padding top is now handled by insets in _layout
     paddingHorizontal: 24,
     paddingBottom: 8,
-    backgroundColor: '#fcfcfc',
+    backgroundColor: colors.background,
     zIndex: 10,
   },
   iconGroup: {
@@ -150,7 +158,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: '#C56A67',
+    backgroundColor: colors.danger,
     minWidth: 18,
     height: 18,
     borderRadius: 9,

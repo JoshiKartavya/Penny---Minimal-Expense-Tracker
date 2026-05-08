@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SectionList } from 'react-native';
+import { StyleSheet, Text, View, SectionList, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
+import { useAppContext } from '../AppContext';
 
 function isSameDay(d1, d2) {
   return d1.getFullYear() === d2.getFullYear() &&
@@ -54,6 +55,8 @@ function groupTransactions(transactions) {
 export default function ActivityScreen() {
   const [sections, setSections] = useState([]);
   const insets = useSafeAreaInsets();
+  const { colors } = useAppContext();
+  const styles = createStyles(colors);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -78,17 +81,34 @@ export default function ActivityScreen() {
     return unsubscribe;
   }, []);
 
+  function handleDelete(id) {
+    Alert.alert('Delete Transaction', 'Are you sure you want to delete this log? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await deleteDoc(doc(db, 'wallet_transactions', id));
+          } catch (error) {
+            Alert.alert('Error', 'Could not delete transaction');
+          }
+        } 
+      }
+    ]);
+  }
+
   function renderTxItem({ item }) {
     const isIncome = item.type === 'income';
     return (
       <View style={styles.txItem}>
-        <View>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={[styles.txAmount, { color: isIncome ? colors.successLight : colors.danger, fontSize: 18, marginBottom: 4 }]}>
+            {isIncome ? '+' : '−'} ₹{formatIndian(item.amount)}
+          </Text>
           <Text style={styles.txDesc} numberOfLines={1}>{item.description}</Text>
           <Text style={styles.txTime}>{fmtTime(new Date(item.date))}  •  {item.method === 'cash' ? 'Cash' : 'Online'}</Text>
         </View>
-        <Text style={[styles.txAmount, { color: isIncome ? '#6A9C78' : '#C56A67' }]}>
-          {isIncome ? '+' : '−'} ₹{formatIndian(item.amount)}
-        </Text>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
+          <Text style={styles.deleteBtnText}>✕</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -122,17 +142,19 @@ export default function ActivityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fcfcfc' },
+const createStyles = (colors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { flex: 1, paddingHorizontal: 28 },
-  screenTitle: { fontSize: 18, fontWeight: '300', color: '#b0b0b0', marginBottom: 24 },
+  screenTitle: { fontSize: 18, fontWeight: '300', color: colors.textMuted, marginBottom: 24 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 14, color: '#ccc' },
-  sectionHeader: { paddingVertical: 10, backgroundColor: '#fcfcfc', marginTop: 12 },
-  sectionHeaderText: { fontSize: 12, fontWeight: '700', color: '#bbb', textTransform: 'uppercase', letterSpacing: 1.2 },
-  txItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f2f2f2' },
-  txDesc: { fontSize: 14, fontWeight: '500', color: '#000', marginBottom: 4 },
-  txTime: { fontSize: 11, color: '#aaa' },
+  emptyText: { fontSize: 14, color: colors.textPlaceholder },
+  sectionHeader: { paddingVertical: 10, backgroundColor: colors.background, marginTop: 12 },
+  sectionHeaderText: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 },
+  txItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSecondary },
+  txDesc: { fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 4 },
+  txTime: { fontSize: 11, color: colors.textSecondary },
   txAmount: { fontSize: 14, fontWeight: '600' },
   txAmt: { fontSize: 15, fontWeight: '600' },
+  deleteBtn: { paddingHorizontal: 12, paddingVertical: 4 },
+  deleteBtnText: { color: colors.textPlaceholder, fontSize: 16, fontWeight: '600' },
 });

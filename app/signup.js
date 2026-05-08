@@ -6,8 +6,14 @@ import {
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getCountFromServer } from 'firebase/firestore';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// import { GoogleSignin } from '@react-native-google-signin/google-signin';
+const GoogleSignin = {
+  configure: () => {},
+  hasPlayServices: async () => true,
+  signIn: async () => { throw new Error('Google Sign-In is disabled in Expo Go preview. Please use Email/Password.'); }
+};
 import { auth, db } from '../firebaseConfig';
+import { useAppContext } from './AppContext';
 
 GoogleSignin.configure({
   webClientId: '420970137197-cccvrkmjo7hednf6eghcuvmoqatpmitb.apps.googleusercontent.com',
@@ -42,6 +48,8 @@ async function sendDiscordNotification(name, email) {
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { colors, isDark } = useAppContext();
+  const styles = createStyles(colors, isDark);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,6 +91,7 @@ export default function SignupScreen() {
       Alert.alert('Signup Error', error.message);
     }
   }
+
   async function handleGoogle() {
     try {
       await GoogleSignin.hasPlayServices();
@@ -157,7 +166,7 @@ export default function SignupScreen() {
             onChangeText={setName}
             autoCapitalize="words"
             placeholder="Your Name"
-            placeholderTextColor="#ccc"
+            placeholderTextColor={colors.textPlaceholder}
           />
 
           <Text style={styles.label}>email</Text>
@@ -168,7 +177,7 @@ export default function SignupScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             placeholder="you@example.com"
-            placeholderTextColor="#ccc"
+            placeholderTextColor={colors.textPlaceholder}
           />
 
           <View style={styles.labelRow}>
@@ -184,7 +193,7 @@ export default function SignupScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               placeholder="••••••••"
-              placeholderTextColor="#ccc"
+              placeholderTextColor={colors.textPlaceholder}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
               <Text style={styles.eyeEmoji}>{showPassword ? '🫣' : '👁️'}</Text>
@@ -207,43 +216,43 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+const createStyles = (colors, isDark) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   topBar: { paddingTop: 60, paddingHorizontal: 24, alignItems: 'flex-end' },
   closeBtn: { padding: 8 },
-  closeText: { fontSize: 22, color: '#bbb', fontWeight: '400' },
+  closeText: { fontSize: 22, color: colors.textMuted, fontWeight: '400' },
 
   content: { flex: 1, paddingHorizontal: 32, justifyContent: 'center', paddingBottom: 40 },
-  title: { fontSize: 30, fontWeight: '800', color: '#000', letterSpacing: -0.8, marginBottom: 6 },
-  subtitle: { fontSize: 15, color: '#888', marginBottom: 36, lineHeight: 22 },
+  title: { fontSize: 30, fontWeight: '800', color: colors.text, letterSpacing: -0.8, marginBottom: 6 },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginBottom: 36, lineHeight: 22 },
 
   socialBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#e8e8e8', borderRadius: 14,
+    borderWidth: 1, borderColor: colors.border, borderRadius: 14,
     paddingVertical: 14, marginBottom: 12,
   },
-  appleBtn: { backgroundColor: '#000', borderColor: '#000' },
-  socialIcon: { fontSize: 16, fontWeight: '700', color: '#000', marginRight: 10, width: 20, textAlign: 'center' },
-  socialText: { fontSize: 15, fontWeight: '500', color: '#000' },
+  appleBtn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  socialIcon: { fontSize: 16, fontWeight: '700', color: colors.text, marginRight: 10, width: 20, textAlign: 'center' },
+  socialText: { fontSize: 15, fontWeight: '500', color: colors.text },
 
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#e8e8e8' },
-  dividerText: { fontSize: 13, color: '#bbb', marginHorizontal: 12 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dividerText: { fontSize: 13, color: colors.textMuted, marginHorizontal: 12 },
 
-  label: { fontSize: 11, fontWeight: '700', color: '#bbb', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  input: { fontSize: 17, color: '#000', borderBottomWidth: 1, borderBottomColor: '#eee', paddingVertical: 10, marginBottom: 24 },
+  label: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  input: { fontSize: 17, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.borderSecondary, paddingVertical: 10, marginBottom: 24 },
   
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
   suggestText: { fontSize: 11, fontWeight: '600', color: '#4A90E2', textTransform: 'lowercase' },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee', marginBottom: 24 },
-  passwordInput: { flex: 1, fontSize: 17, color: '#000', paddingVertical: 10 },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.borderSecondary, marginBottom: 24 },
+  passwordInput: { flex: 1, fontSize: 17, color: colors.text, paddingVertical: 10 },
   eyeBtn: { padding: 10, paddingRight: 0 },
   eyeEmoji: { fontSize: 18 },
 
-  submitBtn: { backgroundColor: '#000', paddingVertical: 17, borderRadius: 30, alignItems: 'center', marginTop: 8 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  submitBtn: { backgroundColor: colors.primary, paddingVertical: 17, borderRadius: 30, alignItems: 'center', marginTop: 8 },
+  submitText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
 
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
-  footerText: { color: '#888', fontSize: 14 },
-  footerLink: { color: '#000', fontSize: 14, fontWeight: '600' },
+  footerText: { color: colors.textSecondary, fontSize: 14 },
+  footerLink: { color: colors.text, fontSize: 14, fontWeight: '600' },
 });

@@ -1,0 +1,40 @@
+export const Colors = {
+  light: {
+    background: '#fcfcfc',
+    card: '#fff',
+    text: '#000',
+    textSecondary: '#888',
+    textMuted: '#bbb',
+    textPlaceholder: '#ccc',
+    border: '#f0f0f0',
+    borderSecondary: '#f2f2f2',
+    primary: '#000',
+    primaryText: '#fff',
+    danger: '#C56A67',
+    success: '#388E3C',
+    successLight: '#6A9C78',
+    iconPlaceholder: '#f0f0f0',
+    overlay: 'rgba(0,0,0,0.3)',
+    overlayDark: 'rgba(0,0,0,0.4)',
+    divider: '#e8e8e8'
+  },
+  dark: {
+    background: '#121212',
+    card: '#1e1e1e',
+    text: '#fff',
+    textSecondary: '#aaa',
+    textMuted: '#888',
+    textPlaceholder: '#666',
+    border: '#2c2c2c',
+    borderSecondary: '#333',
+    primary: '#fff',
+    primaryText: '#000',
+    danger: '#ff8a84',
+    success: '#4caf50',
+    successLight: '#81c784',
+    iconPlaceholder: '#2c2c2c',
+    overlay: 'rgba(0,0,0,0.6)',
+    overlayDark: 'rgba(0,0,0,0.8)',
+    divider: '#333'
+  }
+};

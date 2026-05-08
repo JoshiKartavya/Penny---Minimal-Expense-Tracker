@@ -2,59 +2,17 @@ import { withLayoutContext } from 'expo-router';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect, useRef } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '../../firebaseConfig';
-import { requestPermissionsAsync, sendLocalNotification } from '../../services/NotificationService';
 import Header from '../../components/Header';
+
+import { useAppContext } from '../AppContext';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const appStartTime = useRef(Date.now());
-
-  useEffect(() => {
-    requestPermissionsAsync();
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const q = query(
-          collection(db, 'notifications'),
-          where('to_email', '==', user.email.toLowerCase()),
-          where('status', '==', 'pending')
-        );
-
-        const unsubscribeSnap = onSnapshot(q, (snapshot) => {
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-              const data = change.doc.data();
-              // Only notify for truly new notifications received after app launch
-              if (data.timestamp > appStartTime.current) {
-                if (data.type === 'friend_request') {
-                  sendLocalNotification(
-                    'New Invitation',
-                    `${data.from_email} wants to split expenses with you.`
-                  );
-                } else if (data.type === 'split_request') {
-                  sendLocalNotification(
-                    'New Split Expense',
-                    `${data.from_email} requested ₹${data.amount} for ${data.description}`
-                  );
-                }
-              }
-            }
-          });
-        });
-        
-        return () => unsubscribeSnap();
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
+  const { colors } = useAppContext();
+  const styles = createStyles(colors);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -67,8 +25,8 @@ export default function TabLayout() {
           tabBarItemStyle: styles.tabItem,
           tabBarStyle: styles.tabBar,
           tabBarIndicatorStyle: styles.indicator,
-          tabBarActiveTintColor: '#000',
-          tabBarInactiveTintColor: '#bbb',
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
           swipeEnabled: true,
         }}
       >
@@ -89,17 +47,17 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fcfcfc',
+    backgroundColor: colors.background,
   },
   tabBar: {
-    backgroundColor: '#fcfcfc',
+    backgroundColor: colors.background,
     elevation: 0,
     shadowOpacity: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border,
     paddingHorizontal: 16,
   },
   tabItem: {
@@ -113,7 +71,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   indicator: {
-    backgroundColor: '#000',
+    backgroundColor: colors.primary,
     height: 2,
     borderRadius: 2,
     marginBottom: -1, // Sits exactly on the bottom border

@@ -12,6 +12,7 @@ import {
 import PagerView from 'react-native-pager-view';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppContext } from './AppContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +56,8 @@ const slides = [
 ];
 
 const SlideVisual = ({ slide, isFocused }) => {
+  const { colors, isDark } = useAppContext();
+  const styles = createStyles(colors, isDark);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -126,6 +129,8 @@ const SlideVisual = ({ slide, isFocused }) => {
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppContext();
+  const styles = createStyles(colors, isDark);
   const [activePage, setActivePage] = useState(0);
 
   const bgAnim = useRef(new Animated.Value(0)).current;
@@ -206,7 +211,7 @@ export default function OnboardingScreen() {
   });
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: interpolatedBg, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <Animated.View style={[styles.container, { backgroundColor: isDark ? colors.background : interpolatedBg, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       
       {/* Texture Orbs */}
       <View style={styles.bgOrb1} />
@@ -296,7 +301,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors, isDark) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -307,8 +312,8 @@ const styles = StyleSheet.create({
     width: 400,
     height: 400,
     borderRadius: 200,
-    backgroundColor: '#fff',
-    opacity: 0.5,
+    backgroundColor: isDark ? colors.card : '#fff',
+    opacity: isDark ? 0.2 : 0.5,
   },
   bgOrb2: {
     position: 'absolute',
@@ -317,8 +322,8 @@ const styles = StyleSheet.create({
     width: 350,
     height: 350,
     borderRadius: 175,
-    backgroundColor: '#fff',
-    opacity: 0.4,
+    backgroundColor: isDark ? colors.card : '#fff',
+    opacity: isDark ? 0.2 : 0.4,
   },
   skipHeader: {
     height: 60,
@@ -332,7 +337,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 15,
-    color: '#888',
+    color: colors.textSecondary,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
@@ -357,12 +362,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
+    shadowOpacity: isDark ? 0.3 : 0.08,
     shadowRadius: 20,
     elevation: 8,
     zIndex: 10,
@@ -381,7 +386,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
   },
   emojiWrapper: {
     position: 'absolute',
@@ -398,12 +403,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.3 : 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -418,7 +423,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#888',
+    color: colors.textSecondary,
     marginBottom: 16,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -426,7 +431,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#000',
+    color: colors.text,
     letterSpacing: -0.5,
     textAlign: 'center',
     marginBottom: 12,
@@ -434,7 +439,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 20,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 28,
     fontWeight: '500',
@@ -461,7 +466,7 @@ const styles = StyleSheet.create({
   },
   inactiveDot: {
     width: 6,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
   },
   buttonContainer: {
     height: 60,
@@ -469,7 +474,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   getStartedBtn: {
-    backgroundColor: '#000',
+    backgroundColor: colors.primary,
     paddingVertical: 18,
     paddingHorizontal: 48,
     borderRadius: 30,
@@ -482,7 +487,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   getStartedText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.5,

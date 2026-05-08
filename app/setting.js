@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity,
+  StyleSheet, View, TouchableOpacity,
   ScrollView, Alert, Modal, FlatList, Animated,
 } from 'react-native';
+import Text from '../components/AppText';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import Header from '../components/Header';
+import { useAppContext } from './AppContext';
 
 const STORAGE_KEY = '@tracker_transactions';
 const BALANCE_KEY = '@tracker_balance';
@@ -54,8 +56,12 @@ function formatIndian(num) {
 }
 
 export default function SettingsScreen() {
+  const { language, changeLanguage, fontScale, changeFontScale, themeOverride, changeTheme, t, colors, isDark } = useAppContext();
+  const styles = createStyles(colors, isDark);
   const [currency, setCurrency] = useState(CURRENCIES[0]);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
   
   // Custom Modal State for Clearing Data
   const [clearModalVisible, setClearModalVisible] = useState(false);
@@ -138,34 +144,34 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        <Text style={styles.screenTitle}>setting</Text>
+        <Text style={styles.screenTitle}>{t('setting')}</Text>
 
         {/* AUTH */}
-        <Text style={styles.settingGroup}>account</Text>
+        <Text style={styles.settingGroup}>{t('account')}</Text>
         {!user ? (
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/login')}>
-            <Text style={styles.settingLabel}>log in to connect</Text>
+            <Text style={styles.settingLabel}>{t('log_in_to_connect')}</Text>
             <Text style={styles.settingArrow}>›</Text>
           </TouchableOpacity>
         ) : (
           <>
             <View style={styles.settingRow}>
-              <Text style={styles.settingLabel}>logged in as</Text>
+              <Text style={styles.settingLabel}>{t('logged_in_as')}</Text>
               <Text style={styles.settingSubValue}>{user.displayName || user.email}</Text>
             </View>
             <TouchableOpacity style={styles.signOutListBtn} onPress={handleSignOut}>
-              <Text style={styles.signOutListBtnText}>sign out</Text>
+              <Text style={styles.signOutListBtnText}>{t('sign_out')}</Text>
             </TouchableOpacity>
           </>
         )}
 
 
 
-        {/* CURRENCY */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>preferences</Text>
+        {/* PREFERENCES */}
+        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('preferences')}</Text>
         <TouchableOpacity style={styles.settingRow} onPress={() => setCurrencyModalVisible(true)}>
           <View>
-            <Text style={styles.settingLabel}>currency</Text>
+            <Text style={styles.settingLabel}>{t('currency')}</Text>
             <Text style={styles.settingSubValue}>{currency.name}</Text>
           </View>
           <View style={styles.currencyRight}>
@@ -173,25 +179,62 @@ export default function SettingsScreen() {
             <Text style={styles.settingArrow}>›</Text>
           </View>
         </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.settingRow} onPress={() => setLangModalVisible(true)}>
+          <View>
+            <Text style={styles.settingLabel}>{t('language')}</Text>
+            <Text style={styles.settingSubValue}>{language.toUpperCase()}</Text>
+          </View>
+          <View style={styles.currencyRight}>
+            <Text style={styles.settingArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingRow} onPress={() => setThemeModalVisible(true)}>
+          <View>
+            <Text style={styles.settingLabel}>{t('theme') || 'Theme'}</Text>
+            <Text style={styles.settingSubValue}>
+              {themeOverride === 'system' ? (t('system_default') || 'System Default') : themeOverride === 'dark' ? (t('dark_mode') || 'Dark') : (t('light_mode') || 'Light')}
+            </Text>
+          </View>
+          <View style={styles.currencyRight}>
+            <Text style={styles.settingArrow}>›</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={[styles.settingRow, { flexDirection: 'column', alignItems: 'flex-start', borderBottomWidth: 0 }]}>
+          <Text style={styles.settingLabel}>{t('font_size')}</Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            {[ {label: t('small'), scale: 1.0}, {label: t('medium'), scale: 1.2}, {label: t('large'), scale: 1.4} ].map(item => (
+              <TouchableOpacity 
+                key={item.label}
+                style={[styles.fontBtn, fontScale === item.scale && styles.fontBtnActive]} 
+                onPress={() => changeFontScale(item.scale)}
+              >
+                <Text style={[styles.fontBtnText, fontScale === item.scale && styles.fontBtnTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* APP INFO */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>app</Text>
+        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('app')}</Text>
         <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>version</Text>
+          <Text style={styles.settingLabel}>{t('version')}</Text>
           <Text style={styles.settingValue}>2.0.0</Text>
         </View>
 
         {/* DATA */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>data</Text>
+        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('data')}</Text>
         <TouchableOpacity style={styles.dangerBtn} onPress={promptClearData} activeOpacity={0.8}>
-          <Text style={styles.dangerBtnText}>clear all data</Text>
+          <Text style={styles.dangerBtnText}>{t('clear_all_data')}</Text>
         </TouchableOpacity>
 
         {/* ABOUT */}
-        <Text style={[styles.settingGroup, { marginTop: 32 }]}>about</Text>
+        <Text style={[styles.settingGroup, { marginTop: 32 }]}>{t('about')}</Text>
         <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
           <Text style={[styles.settingLabel, { color: '#bbb', fontSize: 13, lineHeight: 22 }]}>
-            no clutter, just clarity.{'\n'}track what matters, skip what doesn't.
+            {t('about_text')}
           </Text>
         </View>
       </ScrollView>
@@ -205,9 +248,9 @@ export default function SettingsScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>choose currency</Text>
+            <Text style={styles.modalTitle}>{t('choose_currency')}</Text>
             <TouchableOpacity onPress={() => setCurrencyModalVisible(false)} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>done</Text>
+              <Text style={styles.modalCloseText}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.modalHandle} />
@@ -237,6 +280,90 @@ export default function SettingsScreen() {
           />
         </View>
       </Modal>
+      {/* Language picker modal */}
+      <Modal
+        visible={langModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t('choose_language')}</Text>
+            <TouchableOpacity onPress={() => setLangModalVisible(false)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>{t('done')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalHandle} />
+          <FlatList
+            data={[{code: 'en', name: 'English'}, {code: 'hi', name: 'हिंदी'}, {code: 'gu', name: 'ગુજરાતી'}, {code: 'es', name: 'Español'}]}
+            keyExtractor={item => item.code}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isSelected = item.code === language;
+              return (
+                <TouchableOpacity
+                  style={[styles.currencyRow, isSelected && styles.currencyRowSelected]}
+                  onPress={() => { changeLanguage(item.code); setLangModalVisible(false); }}
+                  activeOpacity={0.6}
+                >
+                  <View style={styles.currencyRowLeft}>
+                    <Text style={styles.currencyName}>{item.name}</Text>
+                  </View>
+                  <View style={styles.currencyRowRight}>
+                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
+
+      {/* Theme picker modal */}
+      <Modal
+        visible={themeModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setThemeModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t('theme') || 'Theme'}</Text>
+            <TouchableOpacity onPress={() => setThemeModalVisible(false)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>{t('done')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalHandle} />
+          <FlatList
+            data={[
+              {code: 'system', name: t('system_default') || 'System Default'}, 
+              {code: 'light', name: t('light_mode') || 'Light'}, 
+              {code: 'dark', name: t('dark_mode') || 'Dark'}
+            ]}
+            keyExtractor={item => item.code}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isSelected = item.code === themeOverride;
+              return (
+                <TouchableOpacity
+                  style={[styles.currencyRow, isSelected && styles.currencyRowSelected]}
+                  onPress={() => { changeTheme(item.code); setThemeModalVisible(false); }}
+                  activeOpacity={0.6}
+                >
+                  <View style={styles.currencyRowLeft}>
+                    <Text style={styles.currencyName}>{item.name}</Text>
+                  </View>
+                  <View style={styles.currencyRowRight}>
+                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
+
       {/* Clear Data Confirmation Modal */}
       <Modal
         visible={clearModalVisible}
@@ -246,9 +373,9 @@ export default function SettingsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.alertBox}>
-            <Text style={styles.alertTitle}>Clear all data?</Text>
+            <Text style={styles.alertTitle}>{t('clear_data_title')}</Text>
             <Text style={styles.alertText}>
-              Are you sure? This will permanently delete all your transactions and reset your balance to zero.
+              {t('clear_data_text')}
             </Text>
 
             <View style={styles.alertActions}>
@@ -256,14 +383,14 @@ export default function SettingsScreen() {
                 style={styles.alertCancelBtn} 
                 onPress={() => setClearModalVisible(false)}
               >
-                <Text style={styles.alertCancelText}>Cancel</Text>
+                <Text style={styles.alertCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.alertConfirmBtn} 
                 onPress={executeClearData}
               >
-                <Text style={styles.alertConfirmText}>Yes, Delete</Text>
+                <Text style={styles.alertConfirmText}>{t('yes_delete')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -279,7 +406,7 @@ export default function SettingsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.alertBox}>
-            <Text style={styles.alertTitle}>Sign Out</Text>
+            <Text style={styles.alertTitle}>{t('sign_out')}</Text>
             <Text style={styles.alertText}>
               Are you sure you want to sign out of your account?
             </Text>
@@ -289,14 +416,14 @@ export default function SettingsScreen() {
                 style={styles.signOutBtn} 
                 onPress={executeSignOut}
               >
-                <Text style={styles.signOutBtnText}>Sign Out</Text>
+                <Text style={styles.signOutBtnText}>{t('sign_out')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.signOutCancelBtn} 
                 onPress={() => setSignOutModalVisible(false)}
               >
-                <Text style={styles.signOutCancelText}>Cancel</Text>
+                <Text style={styles.signOutCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -314,62 +441,67 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fcfcfc' },
+const createStyles = (colors, isDark) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { flex: 1, paddingHorizontal: 28 },
-  screenTitle: { fontSize: 18, fontWeight: '300', color: '#b0b0b0', marginBottom: 24 },
+  screenTitle: { fontSize: 18, fontWeight: '300', color: colors.textMuted, marginBottom: 24 },
 
-  settingGroup: { fontSize: 10, fontWeight: '700', color: '#bbb', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f2f2f2' },
-  settingLabel: { fontSize: 15, color: '#000', fontWeight: '400' },
-  settingSubValue: { fontSize: 13, color: '#888', fontWeight: '500', marginTop: 4 },
-  settingValue: { fontSize: 14, color: '#bbb', fontWeight: '400' },
-  settingArrow: { fontSize: 20, color: '#ccc', paddingLeft: 10 },
+  settingGroup: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 },
+  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSecondary },
+  settingLabel: { fontSize: 15, color: colors.text, fontWeight: '400' },
+  settingSubValue: { fontSize: 13, color: colors.textSecondary, fontWeight: '500', marginTop: 4 },
+  settingValue: { fontSize: 14, color: colors.textMuted, fontWeight: '400' },
+  settingArrow: { fontSize: 20, color: colors.textPlaceholder, paddingLeft: 10 },
   currencyRight: { flexDirection: 'row', alignItems: 'center' },
-  currencySymbolBadge: { backgroundColor: '#f0f0f0', color: '#000', fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  currencySymbolBadge: { backgroundColor: colors.iconPlaceholder, color: colors.text, fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
 
-  signOutListBtn: { backgroundColor: '#C56A67', paddingVertical: 10, paddingHorizontal: 28, borderRadius: 16, alignSelf: 'flex-start', marginTop: 16 },
+  fontBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.borderSecondary },
+  fontBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  fontBtnText: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  fontBtnTextActive: { color: colors.primaryText },
+
+  signOutListBtn: { backgroundColor: colors.danger, paddingVertical: 10, paddingHorizontal: 28, borderRadius: 16, alignSelf: 'flex-start', marginTop: 16 },
   signOutListBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   // Danger Button
-  dangerBtn: { backgroundColor: '#C56A67', paddingVertical: 14, borderRadius: 20, alignItems: 'center', marginTop: 12 },
+  dangerBtn: { backgroundColor: colors.danger, paddingVertical: 14, borderRadius: 20, alignItems: 'center', marginTop: 12 },
   dangerBtnText: { color: '#fff', fontSize: 15, fontWeight: '600', letterSpacing: 0.5 },
 
   // Currency modal
-  modalContainer: { flex: 1, backgroundColor: '#fff', paddingTop: 16 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f0f0f0' },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 8 },
-  modalTitle: { fontSize: 16, fontWeight: '600', color: '#000' },
+  modalContainer: { flex: 1, backgroundColor: colors.background, paddingTop: 16 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderSecondary, alignSelf: 'center', marginBottom: 8 },
+  modalTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
   modalClose: { padding: 4 },
-  modalCloseText: { fontSize: 15, color: '#000', fontWeight: '500' },
+  modalCloseText: { fontSize: 15, color: colors.text, fontWeight: '500' },
 
-  currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#f5f5f5' },
-  currencyRowSelected: { backgroundColor: '#fafafa' },
+  currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderSecondary },
+  currencyRowSelected: { backgroundColor: colors.iconPlaceholder },
   currencyRowLeft: { flex: 1 },
-  currencyCode: { fontSize: 14, fontWeight: '600', color: '#000' },
-  currencyName: { fontSize: 12, color: '#888', marginTop: 2 },
+  currencyCode: { fontSize: 14, fontWeight: '600', color: colors.text },
+  currencyName: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   currencyRowRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  currencySymbol: { fontSize: 16, fontWeight: '500', color: '#555' },
-  checkmark: { fontSize: 14, color: '#000', fontWeight: '700' },
+  currencySymbol: { fontSize: 16, fontWeight: '500', color: colors.textSecondary },
+  checkmark: { fontSize: 14, color: colors.text, fontWeight: '700' },
 
   // Alert Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  alertBox: { backgroundColor: '#fff', width: '100%', borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 24 },
-  alertTitle: { fontSize: 18, fontWeight: '700', color: '#000', marginBottom: 12, textAlign: 'center' },
-  alertText: { fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 20, marginBottom: 28, paddingHorizontal: 10 },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlayDark, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  alertBox: { backgroundColor: colors.card, width: '100%', borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.15, shadowRadius: 24, elevation: 24 },
+  alertTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 12, textAlign: 'center' },
+  alertText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 28, paddingHorizontal: 10 },
   alertActions: { width: '100%', gap: 12 },
-  alertConfirmBtn: { backgroundColor: '#C56A67', paddingVertical: 14, borderRadius: 12, alignItems: 'center', width: '100%' },
+  alertConfirmBtn: { backgroundColor: colors.danger, paddingVertical: 14, borderRadius: 12, alignItems: 'center', width: '100%' },
   alertConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   alertCancelBtn: { paddingVertical: 12, alignItems: 'center', width: '100%' },
-  alertCancelText: { color: '#888', fontSize: 15, fontWeight: '500' },
+  alertCancelText: { color: colors.textSecondary, fontSize: 15, fontWeight: '500' },
 
   // Toast
-  toastContainer: { position: 'absolute', alignSelf: 'center', backgroundColor: '#333', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
+  toastContainer: { position: 'absolute', alignSelf: 'center', backgroundColor: isDark ? '#444' : '#333', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
   toastText: { color: '#fff', fontSize: 14, fontWeight: '500' },
   
   signOutActions: { width: '100%', gap: 12 },
-  signOutBtn: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: '#C56A67', alignItems: 'center' },
+  signOutBtn: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.danger, alignItems: 'center' },
   signOutBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
-  signOutCancelBtn: { width: '100%', paddingVertical: 12, borderRadius: 12, backgroundColor: '#f0f0f0', alignItems: 'center' },
-  signOutCancelText: { fontSize: 15, fontWeight: '600', color: '#000' },
+  signOutCancelBtn: { width: '100%', paddingVertical: 12, borderRadius: 12, backgroundColor: colors.iconPlaceholder, alignItems: 'center' },
+  signOutCancelText: { fontSize: 15, fontWeight: '600', color: colors.text },
 });
