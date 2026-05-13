@@ -6,12 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, getCountFromServer } from 'firebase/firestore';
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
-const GoogleSignin = {
-  configure: () => {},
-  hasPlayServices: async () => true,
-  signIn: async () => { throw new Error('Google Sign-In is disabled in Expo Go preview. Please use Email/Password.'); }
-};
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth, db } from '../firebaseConfig';
 import { useAppContext } from './AppContext';
 
